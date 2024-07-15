@@ -21,17 +21,38 @@ main :: proc() {
 			os.exit(1)
 		}
 
-		if to_string(ib) == ".exit" {
-			break program
-		} else {
-			log.errorf("Unrecognized command '%s'.", to_string(ib))
+		if ib.buf[0] == '.' {
+			switch do_meta_command(ib) {
+			case .SUCCESS:
+				continue program
+			case .UNRECOGNIZED_COMMAND:
+				log.errorf("Unrecognized command '%s'", to_string(ib))
+				continue program
+			}
 		}
+
+		stmt: Statement
+		switch prepare_statement(ib, &stmt) {
+		case .SUCCESS:
+		case .UNRECOGNIZED_STATEMENT:
+			log.errorf("Unrecognized keyword at start of '%s'.", to_string(ib))
+			continue program
+		}
+
+		execute_statement(&stmt)
+		log.debug("Executed.")
 	}
 }
 
-to_string :: proc(ib: ^Input_Buffer) -> string {
+to_string_with_len :: proc(ib: ^Input_Buffer) -> string {
 	return cast(string)ib.buf[:ib.len]
 }
+
+to_string_with_pos :: proc(ib: ^Input_Buffer, pos: int) -> string {
+	return cast(string)ib.buf[:pos]
+}
+
+to_string :: proc{to_string_with_len, to_string_with_pos}
 
 read_input :: proc(ib: ^Input_Buffer) -> bool {
 	errno: os.Errno
